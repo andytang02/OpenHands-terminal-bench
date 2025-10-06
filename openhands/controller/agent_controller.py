@@ -277,6 +277,10 @@ class AgentController:
 
         self.state_tracker.close(self.event_stream)
 
+        # Save state and conversation stats before closing
+        # This ensures logs and stats are persisted even when errors occur or control flags hit limits
+        self.save_state()
+
         # unsubscribe from the event stream
         # only the root parent controller subscribes to the event stream
         if not self.is_delegate:

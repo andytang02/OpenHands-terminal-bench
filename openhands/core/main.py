@@ -216,30 +216,33 @@ async def run_controller(
         await run_agent_until_done(controller, runtime, memory, end_states)
     except Exception as e:
         logger.error(f'Exception in main loop: {e}')
+    finally:
+        # Always save session and trajectories, even if there were errors
+        # This ensures logs and trajectories are persisted when control flags hit limits or errors occur
+        
+        # save session when we're about to close
+        if config.file_store is not None and config.file_store != 'memory':
+            end_state = controller.get_state()
+            # NOTE: the saved state does not include delegates events
+            end_state.save_to_session(
+                event_stream.sid, event_stream.file_store, event_stream.user_id
+            )
 
-    # save session when we're about to close
-    if config.file_store is not None and config.file_store != 'memory':
-        end_state = controller.get_state()
-        # NOTE: the saved state does not include delegates events
-        end_state.save_to_session(
-            event_stream.sid, event_stream.file_store, event_stream.user_id
-        )
+        await controller.close(set_stop_state=False)
 
-    await controller.close(set_stop_state=False)
+        state = controller.get_state()
 
-    state = controller.get_state()
-
-    # save trajectories if applicable
-    if config.save_trajectory_path is not None:
-        # if save_trajectory_path is a folder, use session id as file name
-        if os.path.isdir(config.save_trajectory_path):
-            file_path = os.path.join(config.save_trajectory_path, sid + '.json')
-        else:
-            file_path = config.save_trajectory_path
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        histories = controller.get_trajectory(config.save_screenshots_in_trajectory)
-        with open(file_path, 'w') as f:  # noqa: ASYNC101
-            json.dump(histories, f, indent=4)
+        # save trajectories if applicable
+        if config.save_trajectory_path is not None:
+            # if save_trajectory_path is a folder, use session id as file name
+            if os.path.isdir(config.save_trajectory_path):
+                file_path = os.path.join(config.save_trajectory_path, sid + '.json')
+            else:
+                file_path = config.save_trajectory_path
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            histories = controller.get_trajectory(config.save_screenshots_in_trajectory)
+            with open(file_path, 'w') as f:  # noqa: ASYNC101
+                json.dump(histories, f, indent=4)
 
     return state
 
