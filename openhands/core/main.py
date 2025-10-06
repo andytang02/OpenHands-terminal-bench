@@ -284,6 +284,10 @@ def load_replay_log(trajectory_path: str) -> tuple[list[Event] | None, Action]:
 
 
 if __name__ == '__main__':
+    print('=' * 80)
+    print('🚀 CUSTOM OPENHANDS FORK - ANDYTANG02/OPENHANDS-TERMINAL-BENCH 🚀')
+    print('=' * 80)
+
     args = parse_arguments()
 
     config: OpenHandsConfig = setup_config_from_args(args)
