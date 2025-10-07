@@ -294,6 +294,10 @@ if __name__ == '__main__':
     args = parse_arguments()
 
     config: OpenHandsConfig = setup_config_from_args(args)
+    
+    # DEBUG: Print save_trajectory_path and SAVE_TRAJECTORY_PATH env var
+    print(f'DEBUG: config.save_trajectory_path = {config.save_trajectory_path}')
+    print(f'DEBUG: SAVE_TRAJECTORY_PATH env var = {os.environ.get("SAVE_TRAJECTORY_PATH", "NOT SET")}')
 
     # Read task from file, CLI args, or stdin
     task_str = read_task(args, config.cli_multiline_input)
