@@ -233,16 +233,37 @@ async def run_controller(
         state = controller.get_state()
 
         # save trajectories if applicable
-        if config.save_trajectory_path is not None:
-            # if save_trajectory_path is a folder, use session id as file name
-            if os.path.isdir(config.save_trajectory_path):
-                file_path = os.path.join(config.save_trajectory_path, sid + '.json')
+        try:
+            if config.save_trajectory_path is not None:
+                logger.info(f'DEBUG: Attempting to save trajectory. config.save_trajectory_path = {config.save_trajectory_path}')
+                logger.info(f'DEBUG: os.path.isdir({config.save_trajectory_path}) = {os.path.isdir(config.save_trajectory_path)}')
+                logger.info(f'DEBUG: os.path.exists({config.save_trajectory_path}) = {os.path.exists(config.save_trajectory_path)}')
+                
+                # if save_trajectory_path is a folder, use session id as file name
+                if os.path.isdir(config.save_trajectory_path):
+                    file_path = os.path.join(config.save_trajectory_path, sid + '.json')
+                else:
+                    file_path = config.save_trajectory_path
+                
+                logger.info(f'DEBUG: file_path = {file_path}')
+                logger.info(f'DEBUG: os.path.dirname(file_path) = {os.path.dirname(file_path)}')
+                
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                histories = controller.get_trajectory(config.save_screenshots_in_trajectory)
+                
+                logger.info(f'DEBUG: Got {len(histories)} history entries')
+                logger.info(f'DEBUG: Writing to {file_path}')
+                
+                with open(file_path, 'w') as f:  # noqa: ASYNC101
+                    json.dump(histories, f, indent=4)
+                
+                logger.info(f'DEBUG: Successfully saved trajectory to {file_path}')
             else:
-                file_path = config.save_trajectory_path
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            histories = controller.get_trajectory(config.save_screenshots_in_trajectory)
-            with open(file_path, 'w') as f:  # noqa: ASYNC101
-                json.dump(histories, f, indent=4)
+                logger.info('DEBUG: config.save_trajectory_path is None, skipping trajectory save')
+        except Exception as e:
+            logger.error(f'DEBUG: ERROR saving trajectory: {e}')
+            import traceback
+            logger.error(f'DEBUG: Traceback: {traceback.format_exc()}')
 
     return state
 
