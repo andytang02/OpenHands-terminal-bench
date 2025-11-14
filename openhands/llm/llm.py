@@ -311,6 +311,12 @@ class LLM(RetryMixin, DebugMixin):
             # if we're not using litellm proxy, remove the extra_body
             if 'litellm_proxy' not in self.config.model:
                 kwargs.pop('extra_body', None)
+                
+            # Remove stop sequences for models that don't support them
+            # Qwen models on Bedrock don't support stopSequences
+            _model_lower = self.config.model.lower()
+            if ('qwen' in _model_lower):
+                kwargs.pop('stop', None)
 
             # Record start time for latency measurement
             start_time = time.time()
