@@ -315,7 +315,7 @@ class LLM(RetryMixin, DebugMixin):
             # Remove stop sequences for models that don't support them
             # Qwen models on Bedrock don't support stopSequences
             _model_lower = self.config.model.lower()
-            if ('qwen' in _model_lower):
+            if ('qwen' in _model_lower or 'gpt-oss' in _model_lower):
                 kwargs.pop('stop', None)
 
             # Record start time for latency measurement
@@ -654,11 +654,21 @@ class LLM(RetryMixin, DebugMixin):
             if cache_write_tokens:
                 stats += 'Input tokens (cache write): ' + str(cache_write_tokens) + '\n'
 
-            # Get context window from model info
+            # Get context window - prioritize config, then model_info
             context_window = 0
-            if self.model_info and 'max_input_tokens' in self.model_info:
+            
+            # First try to use the configured max_input_tokens
+            if self.config.max_input_tokens is not None:
+                context_window = self.config.max_input_tokens
+                logger.debug(f'Using context window from config: {context_window}')
+            # Fall back to model_info if not configured
+            elif (
+                self.model_info 
+                and 'max_input_tokens' in self.model_info 
+                and self.model_info['max_input_tokens'] is not None
+            ):
                 context_window = self.model_info['max_input_tokens']
-                logger.debug(f'Using context window: {context_window}')
+                logger.debug(f'Using context window from model_info: {context_window}')
 
             # Record in metrics
             # We'll treat cache_hit_tokens as "cache read" and cache_write_tokens as "cache write"
