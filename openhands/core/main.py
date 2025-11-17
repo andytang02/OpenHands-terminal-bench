@@ -58,6 +58,7 @@ async def run_controller(
     headless_mode: bool = True,
     memory: Memory | None = None,
     conversation_instructions: str | None = None,
+    target_context_length: int | None = None,
 ) -> State | None:
     """Main coroutine to run the agent controller with task input flexibility.
 
@@ -163,7 +164,8 @@ async def run_controller(
         )
 
     controller, initial_state = create_controller(
-        agent, runtime, config, conversation_stats, replay_events=replay_events
+        agent, runtime, config, conversation_stats, replay_events=replay_events,
+        target_context_length=target_context_length
     )
 
     assert isinstance(initial_user_action, Action), (

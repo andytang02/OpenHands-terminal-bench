@@ -131,6 +131,7 @@ class AgentController:
         status_callback: Callable | None = None,
         replay_events: list[Event] | None = None,
         security_analyzer: 'SecurityAnalyzer | None' = None,
+        target_context_length: int | None = None,
     ):
         """Initializes a new instance of the AgentController class.
 
@@ -197,6 +198,13 @@ class AgentController:
 
         # security analyzer for direct access
         self.security_analyzer = security_analyzer
+
+        # Target context length tracking
+        self.target_context_length = target_context_length
+        self._reached_target_context = False
+        self._in_final_turn = False
+        self._final_turn_taken = False
+        self._injected_continue_message_count = 0
 
         # Add the system message to the event stream
         self._add_system_message()
@@ -514,6 +522,18 @@ class AgentController:
             return
 
         elif isinstance(action, AgentFinishAction):
+            # Check if we should inject a continue message
+            if self._should_inject_continue_message():
+                self._injected_continue_message_count += 1
+                self.log('info', f'Agent finished early. Injecting continue message #{self._injected_continue_message_count} to reach target context length.')
+                continue_message = MessageAction(
+                    content="Before finalizing your answer, take additional time to verify your reasoning, consider alternative approaches, and search for any missing information that could strengthen your response."
+                )
+                self.event_stream.add_event(continue_message, EventSource.USER)
+                # Set the agent state back to running to process this message
+                await self.set_agent_state_to(AgentState.RUNNING)
+                return
+            
             self.state.outputs = action.outputs
             await self.set_agent_state_to(AgentState.FINISHED)
         elif isinstance(action, AgentRejectAction):
@@ -753,6 +773,7 @@ class AgentController:
             is_delegate=True,
             headless_mode=self.headless_mode,
             security_analyzer=self.security_analyzer,
+            target_context_length=self.target_context_length,
         )
 
     def end_delegate(self) -> None:
@@ -862,6 +883,24 @@ class AgentController:
             logger.warning('Control flag limits hit')
             await self._react_to_exception(e)
             return
+        
+        # Check if we've reached target context length BEFORE making the next LLM call
+        # This prevents the agent from going over the target
+        if self._should_inject_final_turn_message():
+            self.log('info', 'Target context length reached. Injecting final turn message.')
+            self._in_final_turn = True
+            final_message = MessageAction(
+                content="You have reached the target context length. You have one final turn to complete any remaining edits, or if you are done, you can finish."
+            )
+            self.event_stream.add_event(final_message, EventSource.USER)
+            return
+
+        # If we're in the final turn and have just completed it, stop the agent
+        if self._in_final_turn and self._final_turn_taken:
+            self.log('info', 'Final turn completed. Stopping agent.')
+            await self.set_agent_state_to(AgentState.FINISHED)
+            return
+
 
         action: Action = NullAction()
 
@@ -874,7 +913,10 @@ class AgentController:
                 action = self.agent.step(self.state)
                 if action is None:
                     raise LLMNoActionError('No action was returned')
-                action._source = EventSource.AGENT  # type: ignore [attr-defined]
+                action._source = EventSource.AGENT  
+                 
+                if self._in_final_turn and not self._final_turn_taken:
+                    self._final_turn_taken = True# type: ignore [attr-defined]
             except (
                 LLMMalformedActionError,
                 LLMNoActionError,
@@ -1206,3 +1248,53 @@ class AgentController:
 
     def save_state(self):
         self.state_tracker.save_state()
+        
+
+    def _get_current_context_length(self) -> int:
+        """Get the current context length in tokens from the history.
+        
+        This uses the MAXIMUM prompt tokens seen so far, which represents the 
+        largest context window used. Since observations are added between LLM calls,
+        the context tends to grow over time.
+        
+        Returns:
+            int: The estimated context length in tokens.
+        """
+        try:
+            # Get metrics from conversation_stats (where they're actually tracked)
+            metrics = self.conversation_stats.get_combined_metrics()
+            
+            if metrics and metrics.token_usages:
+                # Use the maximum prompt token count from all LLM calls
+                max_prompt_tokens = max(
+                    usage.prompt_tokens for usage in metrics.token_usages
+                )
+                return max_prompt_tokens
+            
+            # Fallback: if no metrics, return 0
+            return 0
+        except Exception as e:
+            self.log('warning', f'Error calculating context length: {e}')
+            return 0
+
+    def _should_inject_final_turn_message(self) -> bool:
+        """Check if we should inject the final turn message."""
+        if self.target_context_length is None:
+            return False
+        if self._in_final_turn:
+            return False
+        
+        current_length = self._get_current_context_length()
+        self.log('info', f'Current context length: {current_length}, Target: {self.target_context_length}')
+        
+        return current_length >= self.target_context_length
+
+    def _should_inject_continue_message(self) -> bool:
+        """Check if we should inject a continue message after agent finish."""
+        if self.target_context_length is None:
+            return False
+        
+        current_length = self._get_current_context_length()
+        self.log('info', f'Agent finished early. Current context: {current_length}, Target: {self.target_context_length}')
+        
+        return current_length < self.target_context_length

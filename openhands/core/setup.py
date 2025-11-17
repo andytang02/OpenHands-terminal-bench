@@ -216,6 +216,7 @@ def create_controller(
     conversation_stats: ConversationStats,
     headless_mode: bool = True,
     replay_events: list[Event] | None = None,
+    target_context_length: int | None = None,
 ) -> tuple[AgentController, State | None]:
     event_stream = runtime.event_stream
     initial_state = None
@@ -241,6 +242,7 @@ def create_controller(
         confirmation_mode=config.security.confirmation_mode,
         replay_events=replay_events,
         security_analyzer=runtime.security_analyzer,
+        target_context_length=target_context_length,
     )
     return (controller, initial_state)
 
