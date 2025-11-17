@@ -140,6 +140,12 @@ def add_headless_specific_arguments(parser: argparse.ArgumentParser) -> None:
         type=str,
         default=None,
     )
+    parser.add_argument(
+        '--target-context-length',
+        type=int,
+        default=None,
+        help='Target context length in tokens. If set, agent will be forced to stop when reached, or continue if finished early.',
+    )
 
 
 def get_cli_parser() -> argparse.ArgumentParser:

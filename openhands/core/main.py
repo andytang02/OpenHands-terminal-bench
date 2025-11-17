@@ -325,5 +325,6 @@ if __name__ == '__main__':
             fake_user_response_fn=None
             if args.no_auto_continue
             else auto_continue_response,
+            target_context_length=args.target_context_length,
         )
     )
