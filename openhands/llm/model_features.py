@@ -119,6 +119,8 @@ PROMPT_CACHE_PATTERNS: list[str] = [
     'claude-3-opus-20240229',
     'claude-sonnet-4*',
     'claude-opus-4*',
+    'us.anthropic.claude-haiku-4*',
+    'us.anthropic.claude-sonnet-4*',
 ]
 
 SUPPORTS_STOP_WORDS_FALSE_PATTERNS: list[str] = [
