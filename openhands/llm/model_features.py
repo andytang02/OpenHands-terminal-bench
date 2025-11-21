@@ -70,6 +70,8 @@ FUNCTION_CALLING_PATTERNS: list[str] = [
     'claude-3-5-haiku*',
     'claude-sonnet-4*',
     'claude-opus-4*',
+    'claude-sonnet-4-5*',
+    'claude-haiku-4-5*',
     # OpenAI families
     'gpt-4o*',
     'gpt-4.1',
@@ -104,6 +106,7 @@ REASONING_EFFORT_PATTERNS: list[str] = [
     # DeepSeek reasoning family
     'deepseek-r1-0528*',
     'claude-sonnet-4-5*',
+    'claude-haiku-4-5*',
 ]
 
 PROMPT_CACHE_PATTERNS: list[str] = [
