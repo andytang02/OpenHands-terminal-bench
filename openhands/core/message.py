@@ -27,9 +27,11 @@ class TextContent(Content):
 
     @model_serializer(mode='plain')
     def serialize_model(self) -> dict[str, str | dict[str, str]]:
+        # Ensure text is never empty or whitespace-only for strict APIs like Bedrock
+        text_value = self.text if (self.text and self.text.strip()) else '.'
         data: dict[str, str | dict[str, str]] = {
             'type': self.type,
-            'text': self.text,
+            'text': text_value,
         }
         if self.cache_prompt:
             data['cache_control'] = {'type': 'ephemeral'}
@@ -114,11 +116,17 @@ class Message(BaseModel):
                                 d_item.pop('cache_control', None)
 
             if isinstance(item, TextContent):
-                content.append(d)
+                # Validate the serialized content has non-empty text
+                if isinstance(d, dict) and d.get('text', '').strip():
+                    content.append(d)
             elif isinstance(item, ImageContent) and self.vision_enabled:
                 # ImageContent.model_dump() always returns a list
                 # We know d is a list for ImageContent
                 content.extend([d] if isinstance(d, dict) else d)
+
+        # Ensure at least one content block exists for strict APIs like Bedrock
+        if not content:
+            content = [{'type': 'text', 'text': '.'}]
 
         message_dict: dict[str, Any] = {'content': content, 'role': self.role}
 

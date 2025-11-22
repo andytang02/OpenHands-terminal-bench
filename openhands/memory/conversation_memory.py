@@ -301,7 +301,7 @@ class ConversationMemory:
             ]
         elif isinstance(action, MessageAction):
             role = 'user' if action.source == 'user' else 'assistant'
-            content = [TextContent(text=action.content or '')]
+            content = [TextContent(text=action.content or '.')]
             if action.image_urls:
                 if role == 'user':
                     for idx, url in enumerate(action.image_urls):
